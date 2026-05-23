@@ -1,0 +1,92 @@
+# === Flutter / Dart ===
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+*.dart.js
+*.js_
+*.js.deps
+*.js.map
+.pub-cache/
+.pub/
+**/doc/api/
+coverage/
+
+# === IDE ===
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+*.swp
+*.swo
+
+# === Android ===
+**/android/app/debug
+**/android/app/profile
+**/android/app/release
+**/android/.gradle/
+**/android/.kotlin/
+**/android/local.properties
+**/android/app/google-services.json
+**/android/key.properties
+*.keystore
+*.jks
+
+# === iOS ===
+**/ios/Flutter/.last_build_id
+**/ios/Pods/
+**/ios/.symlinks/
+
+# === Firebase / Secrets ===
+lib/firebase_options.dart
+firebase.json
+.firebaserc
+firebase_debug.log
+firebase_debug.*.log
+google-services.json
+GoogleService-Info.plist
+test_firebase.js
+
+# === Environment / Secrets ===
+.env
+*.env
+*.env.*
+!.env.example
+.env.local
+.env.production
+
+# === OS Generated ===
+.DS_Store
+.DS_Store?
+Thumbs.db
+*.log
+
+# === Build Artifacts ===
+*.class
+*.pyc
+node_modules/
+
+# === Large Binary Files ===
+*.pptx
+
+# === Misc ===
+.metadata
+*.iml
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+app.*.symbols
+app.*.map.json
+
+# === Numbered files (unnamed screenshots at root) ===
+/1
+/2
+/3
+/4
+/5
+/6

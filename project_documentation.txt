@@ -1,0 +1,1989 @@
+================================================================================
+                        FESTFLOW — PROJECT DOCUMENTATION
+               Comprehensive Software Requirement Specification (SRS)
+                    & Technical Reference Documentation v2.0
+================================================================================
+
+Generated: April 2026
+Platform: Flutter (Android/iOS) + Firebase Backend
+Language: Dart 3.10.x
+Framework: Flutter SDK ^3.6.2
+
+Status of Paper Publication  : Not Submitted
+Status of Project Documentation: 100% Complete
+
+================================================================================
+TABLE OF CONTENTS
+================================================================================
+
+  SECTION A — PROJECT OVERVIEW
+    1.  Abstract & Introduction
+    2.  Technology Stack & Dependencies (pubspec.yaml)
+    3.  Complete File Structure
+    4.  Firestore Database Schema
+
+  SECTION B — FILE-BY-FILE DOCUMENTATION
+    Phase 1:  Home Section (Entry, Auth, Services, Dashboard)
+    Phase 2:  Leader Section (Dashboard, Sub-Events, Members, Guests, Analytics)
+    Phase 3:  Member Section (Dashboard, Events, Analytics, Settings)
+    Phase 4:  Guest Section (Dashboard, Notifications, Emergency, Settings)
+
+  SECTION C — SOFTWARE REQUIREMENT SPECIFICATION
+    5.  Proposed Methodology (Architecture / Model / DFDs / Algorithms)
+    6.  System Design — Structural Diagrams
+    7.  System Design — Behavioral Diagrams
+    8.  Implementation — Module Description
+    9.  Coding Standards & Conventions
+    10. Results (Expected Output)
+    11. References
+
+
+================================================================================
+SECTION A — PROJECT OVERVIEW
+================================================================================
+
+
+================================================================================
+1. ABSTRACT & INTRODUCTION
+================================================================================
+
+FestFlow is a cross-platform mobile application built with Flutter and Firebase
+designed to streamline the end-to-end management of college festivals, cultural
+events, and organizational gatherings.
+
+The platform introduces a role-based access control (RBAC) system with three
+distinct user tiers:
+
+  • LEADER  — The event creator and administrator. Has full control over event
+               details, sub-event creation, member invitations, guest approval
+               workflows, analytics dashboards, and QR code sharing.
+
+  • MEMBER  — A trusted collaborator invited by the Leader. Can view event
+               details, manage assigned sub-events, view analytics, and
+               communicate via integrated chat.
+
+  • GUEST   — An external attendee who discovers events via QR scanning or
+               browsing the public event list. Must complete a Google Forms-
+               style questionnaire (if the event is private) before being
+               granted access to sub-event listings and dashboards.
+
+The application solves several key problems:
+  - Manual event coordination via WhatsApp/email is error-prone
+  - No centralized dashboard for tracking sub-events and attendees
+  - Guest registration is typically handled via third-party tools
+  - Real-time communication between organizers is fragmented
+
+Key Features:
+  ✓ Google Sign-In authentication (OAuth 2.0)
+  ✓ Multi-step event creation wizard with location services
+  ✓ QR code generation, sharing (WhatsApp, AirDrop, etc.), and scanning
+  ✓ Google Forms-style questionnaire builder for guest screening
+  ✓ Real-time Firestore-powered notifications
+  ✓ AI-powered event analytics via Google Gemini API
+  ✓ Online/Offline presence tracking with WidgetsBindingObserver
+  ✓ Emergency SOS dialer for guest safety
+  ✓ Role-based floating action menus
+  ✓ CSV export capabilities for analytics data
+
+
+================================================================================
+2. TECHNOLOGY STACK & DEPENDENCIES (pubspec.yaml)
+================================================================================
+
+Below is every dependency used in this project, what it does, and why it is
+included:
+
+CORE FRAMEWORK:
+  flutter (sdk)               — The primary UI framework for building natively
+                                 compiled applications for mobile from a single
+                                 Dart codebase.
+
+FIREBASE SUITE:
+  firebase_core: ^3.11.0      — Initializes the Firebase SDK. Required before
+                                 any other Firebase service can be used. Called
+                                 in main.dart via Firebase.initializeApp().
+
+  firebase_auth: ^5.5.1       — Handles user authentication. Supports Google
+                                 Sign-In, email/password, and anonymous auth.
+                                 Used by AuthService for login/signup flows.
+
+  cloud_firestore: ^5.6.5     — The NoSQL cloud database. Stores all event
+                                 data, user profiles, sub-events, guest
+                                 questionnaires, notifications, and chat
+                                 messages. Supports real-time listeners via
+                                 StreamBuilder widgets.
+
+  firebase_analytics: ^11.4.2  — Tracks user engagement events and screen
+                                 views for app usage analytics.
+
+  firebase_storage: ^12.4.4   — Cloud file storage for user-uploaded profile
+                                 images and event banners. Images are uploaded
+                                 via ImagePicker and stored with unique paths.
+
+  firebase_ui_auth: ^1.16.1   — Pre-built Firebase authentication UI widgets.
+                                 Provides styled login screens and auth flows.
+
+AUTHENTICATION:
+  google_sign_in: ^6.2.2      — Native Google OAuth 2.0 integration. Presents
+                                 the system account picker dialog. Used in
+                                 auth_service.dart to authenticate leaders,
+                                 members, and guests.
+
+  sign_in_button: ^3.2.0      — Pre-styled Google/Apple/Facebook sign-in
+                                 buttons for consistent UI across platforms.
+
+UI & DESIGN:
+  cupertino_icons: ^1.0.8     — iOS-style icons for cross-platform consistency.
+
+  google_fonts: ^8.0.2        — Dynamically loads fonts from the Google Fonts
+                                 library (e.g., Inter, Roboto, Outfit) without
+                                 bundling font files in the app binary.
+
+  flutter_staggered_animations: ^1.1.1
+                               — Staggered entrance animations for list items.
+                                 Used in event lists and member lists for a
+                                 premium "cascade reveal" effect.
+
+  shimmer: ^3.0.0             — Loading placeholder animations. Displays
+                                 shimmering skeleton screens while Firestore
+                                 data loads asynchronously.
+
+  fl_chart: ^1.2.0            — Chart library for rendering bar charts, pie
+                                 charts, and line graphs in the analytics
+                                 screens for both Leader and Member dashboards.
+
+DATA & UTILITIES:
+  intl: any                   — Internationalization and date/time formatting.
+                                 Used with DateFormat.yMMMd() for displaying
+                                 event dates in human-readable format.
+
+  csv: ^6.0.0                 — CSV file generation for exporting event
+                                 analytics data (attendee lists, sub-event
+                                 stats) to downloadable spreadsheet format.
+
+  path_provider: ^2.1.5       — Provides access to the device's temporary and
+                                 documents directories. Used for storing
+                                 generated QR code images before sharing.
+
+  http: ^1.6.0                — HTTP client for making REST API calls. Used
+                                 by GeminiService for AI report generation.
+
+QR CODE SYSTEM:
+  qr_flutter: ^4.1.0          — QR code generation widget. Renders event
+                                 codes as scannable QR images inside dialogs.
+                                 Used in QRViewerDialog.
+
+  mobile_scanner: ^5.2.3      — Camera-based QR code scanner. Uses the
+                                 device camera to detect and decode QR codes
+                                 in real-time. Implements the "Golden Ticket"
+                                 flow for private event access.
+
+  share_plus: ^10.1.2         — Native OS sharing. Shares QR code images
+                                 and text via WhatsApp, AirDrop, email, etc.
+
+LOCATION SERVICES:
+  geolocator: ^14.0.2         — GPS location access. Fetches the device's
+                                 current latitude/longitude for automatic
+                                 event location detection during creation.
+
+  geocoding: ^4.0.0           — Reverse geocoding. Converts GPS coordinates
+                                 into human-readable addresses (city, state,
+                                 country) for the event location field.
+
+AI INTEGRATION:
+  google_generative_ai: ^0.4.6 — Google Gemini API client. Used by
+                                 GeminiService to generate AI-powered event
+                                 analytics reports with recommendations.
+
+MEDIA:
+  image_picker: ^1.1.2        — Camera/gallery image picker for profile
+                                 photo uploads and event banner images.
+
+  flutter_email_sender: ^7.0.0 — Sends emails directly from the app. Used
+                                 in help/support screens for bug reports.
+
+COMMUNICATION:
+  url_launcher: ^6.3.2        — Opens external URLs, phone dialers, and
+                                 email clients. Powers the Emergency SOS
+                                 button in the Guest floating menu.
+
+DEV DEPENDENCIES:
+  flutter_test (sdk)          — Widget and unit testing framework.
+  integration_test (sdk)      — On-device E2E testing framework.
+  flutter_lints: ^5.0.0       — Dart analysis rules for code quality.
+
+
+================================================================================
+3. COMPLETE FILE STRUCTURE
+================================================================================
+
+festflow/
+├── android/                          # Android native configuration
+├── ios/                              # iOS native configuration
+├── assets/
+│   └── image/                        # Static image assets (logos, banners)
+├── test/
+│   ├── widget_test.dart              # Default Flutter widget test
+│   └── logic_test.dart               # White-box GlobalState unit tests
+├── integration_test/
+│   └── app_test.dart                 # Hybrid E2E test (Google Sign-In pause)
+├── lib/
+│   ├── main.dart                     # App entry point, Firebase init
+│   ├── global.dart                   # Global state container (activeEventCode)
+│   ├── firebase_options.dart         # Auto-generated Firebase config
+│   │
+│   ├── home/                         # ── HOME MODULE ──
+│   │   ├── face_page.dart            # Splash screen + auto-login router
+│   │   ├── dashboard/
+│   │   │   ├── home_page.dart        # Role selection (Host Zone / Guest Zone)
+│   │   │   ├── host_zone.dart        # Leader/Member login + event code entry
+│   │   │   ├── guest_zone.dart       # Guest login + event code entry
+│   │   │   ├── all_event_list.dart   # Public event browser with search
+│   │   │   ├── about_event_details.dart  # Event detail page + join flow
+│   │   │   └── event_qr_scanner.dart # QR code scanner (camera-based)
+│   │   ├── auth/
+│   │   │   ├── leader_signup.dart    # Leader registration wizard
+│   │   │   ├── member_signup.dart    # Member registration + invitation check
+│   │   │   ├── guest_signup.dart     # Guest registration + questionnaire
+│   │   │   └── forgot_eventcode.dart # Event code recovery screen
+│   │   ├── signup/
+│   │   │   ├── signup_1_how_to_nominate.dart  # Step 1: Event nomination
+│   │   │   ├── signup_2_choose_location.dart  # Step 2: GPS location picker
+│   │   │   ├── signup_3_describe_event.dart   # Step 3: Event details form
+│   │   │   └── signup_4_review.dart           # Step 4: Review & submit
+│   │   ├── services/
+│   │   │   ├── auth_service.dart     # Google Sign-In + Firebase Auth logic
+│   │   │   ├── firestore_service.dart# All Firestore CRUD operations
+│   │   │   ├── gemini_service.dart   # Google Gemini AI report generator
+│   │   │   └── user_service.dart     # Lightweight auth helper (legacy)
+│   │   ├── widgets/
+│   │   │   ├── loading_bar.dart      # Animated loading spinner
+│   │   │   └── logo_with_name.dart   # App logo + text branding widget
+│   │   └── help/
+│   │       └── help.dart             # FAQ and help documentation screen
+│   │
+│   ├── leader/                       # ── LEADER MODULE ──
+│   │   ├── screens/
+│   │   │   ├── leader_dashboard.dart     # Main dashboard (50-100 line detail)
+│   │   │   ├── edit_event.dart           # Edit existing event details
+│   │   │   ├── profile_screen.dart       # Leader profile management
+│   │   │   ├── notification_screen.dart  # Real-time notification feed
+│   │   │   ├── help_support.dart         # Help & support page
+│   │   │   ├── analytics/
+│   │   │   │   └── analytics_screen.dart # AI-powered analytics dashboard
+│   │   │   ├── sub_events/
+│   │   │   │   ├── sub_event_page.dart       # Sub-event list view
+│   │   │   │   ├── add_sub_event.dart        # Create new sub-event
+│   │   │   │   ├── edit_sub_event.dart       # Edit existing sub-event
+│   │   │   │   ├── sub_event_details.dart    # Sub-event detail view
+│   │   │   │   ├── manage_sub_event.dart     # Sub-event admin controls
+│   │   │   │   └── search_sub_event.dart     # Sub-event search
+│   │   │   ├── members/
+│   │   │   │   ├── member_page.dart          # Member list + invitations
+│   │   │   │   ├── add_member.dart           # Invite new member by email
+│   │   │   │   ├── member_details.dart       # Individual member info
+│   │   │   │   ├── manage_members.dart       # Member role management
+│   │   │   │   └── search_members.dart       # Member search
+│   │   │   ├── guest/
+│   │   │   │   ├── guest_page.dart           # Guest list + approval queue
+│   │   │   │   ├── approve_guest_page.dart   # Guest approval/rejection
+│   │   │   │   └── guest_questions_page.dart # Google Forms Q&A builder
+│   │   │   └── settings/
+│   │   │       ├── settings_page.dart        # Settings hub
+│   │   │       ├── account_settings.dart     # Account management
+│   │   │       ├── chat_screen.dart          # In-app chat (Gemini AI)
+│   │   │       ├── general_settings.dart     # Language, theme prefs
+│   │   │       ├── notification_settings.dart# Push notification toggles
+│   │   │       ├── privacy_settings.dart     # Data & privacy policy
+│   │   │       └── about_page.dart           # App info & version
+│   │   └── widgets/
+│   │       ├── floating_menu.dart        # Leader floating action menu
+│   │       └── stats_widget.dart         # Dashboard statistics card
+│   │
+│   ├── member/                       # ── MEMBER MODULE ──
+│   │   ├── screens/
+│   │   │   ├── member_dashboard.dart     # Main member dashboard
+│   │   │   ├── member_event_page.dart    # Sub-event list for members
+│   │   │   ├── member_event_details.dart # Sub-event detail view
+│   │   │   ├── member_list.dart          # View other members
+│   │   │   ├── member_analytics_screen.dart # Analytics (read-only)
+│   │   │   ├── profile_screen.dart       # Member profile management
+│   │   │   ├── notification_screen.dart  # Notification feed
+│   │   │   ├── help_support.dart         # Help page
+│   │   │   └── settings/
+│   │   │       ├── settings_page.dart        # Settings hub
+│   │   │       ├── account_settings.dart     # Account management
+│   │   │       ├── chat_screen.dart          # AI chat
+│   │   │       ├── general_settings.dart     # Preferences
+│   │   │       ├── notification_settings.dart# Notification toggles
+│   │   │       ├── privacy_settings.dart     # Privacy policy
+│   │   │       └── about_page.dart           # App info
+│   │   └── widgets/
+│   │       ├── floating_menu.dart        # Member floating action menu
+│   │       └── stats_widget.dart         # Dashboard statistics card
+│   │
+│   ├── guest/                        # ── GUEST MODULE ──
+│   │   ├── screens/
+│   │   │   ├── guest_dashboard.dart      # Main guest dashboard
+│   │   │   ├── guest_sub_event_list.dart  # Browse sub-events
+│   │   │   ├── guest_sub_event_details.dart # Sub-event detail view
+│   │   │   ├── profile_screen.dart       # Guest profile
+│   │   │   ├── notification_screen.dart  # Real-time notifications
+│   │   │   ├── help_support.dart         # Help page
+│   │   │   └── settings/
+│   │   │       ├── settings_page.dart        # Settings hub (with sign-out)
+│   │   │       ├── account_settings.dart     # Account management
+│   │   │       ├── chat_screen.dart          # AI chat
+│   │   │       ├── general_settings.dart     # Preferences
+│   │   │       ├── notification_settings.dart# Notification toggles
+│   │   │       ├── privacy_settings.dart     # Privacy policy
+│   │   │       └── about_page.dart           # App info
+│   │   └── widgets/
+│   │       ├── floating_menu.dart        # Events + Emergency SOS menu
+│   │       └── stats_widget.dart         # Sub-event count card
+│   │
+│   ├── theme/
+│   │   └── button/
+│   │       └── floating_Action_Button.dart # Reusable FAB widget
+│   │
+│   └── widgets/
+│       └── qr_viewer_dialog.dart     # QR code display + share dialog
+│
+├── pubspec.yaml                      # Dependencies & asset configuration
+├── project_documentation.txt         # THIS FILE
+└── README.md
+
+
+================================================================================
+4. FIRESTORE DATABASE SCHEMA
+================================================================================
+
+The Firestore database is organized into three root-level collections:
+
+────────────────────────────────────────
+COLLECTION: leader/{email}
+────────────────────────────────────────
+Purpose: Stores leader profile and their created events.
+Document ID: Leader's email address (e.g., kotojupreetham@gmail.com)
+
+Fields:
+  email       : String    — Leader's email address
+  username    : String    — Display name
+  uid         : String    — Firebase Auth UID
+  createdAt   : Timestamp — Account creation timestamp
+
+Sub-collection: leader/{email}/events/{eventCode}
+  Contains the event creation data submitted during the 4-step signup wizard.
+  Fields include: title, description, location, date, type (public/private),
+  amount, image URL, isApproved, timestamp, createdBy, createdByID.
+
+────────────────────────────────────────
+COLLECTION: users/{email}
+────────────────────────────────────────
+Purpose: Stores member and guest profiles.
+Document ID: User's email address
+
+Fields:
+  email       : String    — User's email
+  username    : String    — Display name
+  uid         : String    — Firebase Auth UID
+  isOnline    : Boolean   — Online/offline presence status
+  createdAt   : Timestamp — Account creation timestamp
+
+Sub-collection: users/{email}/events/{eventCode}
+  Tracks which events this user has joined and their role.
+  Fields:
+    role       : String    — "member" or "guest"
+    eventCode  : String    — The event code
+    eventTitle : String    — Cached event title
+    joinedAt   : Timestamp — When the user joined
+    isApproved : Boolean   — (Guests only) Whether approved by leader
+
+Sub-collection: users/{email}/notifications/{notificationId}
+  Real-time notification feed for the user.
+  Fields:
+    title      : String    — Notification title
+    subtitle   : String    — Notification body text
+    timestamp  : Timestamp — When the notification was created
+
+────────────────────────────────────────
+COLLECTION: events/{eventCode}
+────────────────────────────────────────
+Purpose: The master event document. Central hub for all event data.
+Document ID: The unique event code (e.g., "COLLE-12345")
+
+Top-level Fields (Map fields):
+  details     : Map       — Contains all event metadata (title, description,
+                             location, date, type, amount, image, etc.)
+  leader      : Map       — Contains leader profile data (email, username, uid,
+                             isOnline)
+  createdAt   : Timestamp — Event creation timestamp
+  isApproved  : Boolean   — Whether the event is approved and live
+  signAt      : Timestamp — Last sign-in timestamp
+
+Sub-collection: events/{eventCode}/member/{email}
+  Each document represents an invited or joined member.
+  Fields:
+    email      : String
+    username   : String
+    uid        : String
+    isJoined   : Boolean   — Whether the member accepted the invitation
+    isOnline   : Boolean   — Presence status
+    profileImage: String   — URL to profile photo
+
+Sub-collection: events/{eventCode}/guest/{email}
+  Each document represents a registered guest.
+  Fields:
+    email      : String
+    username   : String
+    uid        : String
+    joinedAt   : Timestamp
+    profileImage: String
+
+Sub-collection: events/{eventCode}/Guest/{email}
+  (Note: Capital "G" — legacy collection used during initial guest signup)
+  Same structure as guest/{email}.
+
+Sub-collection: events/{eventCode}/sub-events/{subEventId}
+  Each document represents a sub-event within the parent event.
+  Fields:
+    title       : String
+    description : String
+    date        : Timestamp
+    time        : String
+    location    : String
+    type        : String    — Category of sub-event
+    members     : List      — Assigned member emails
+    createdAt   : Timestamp
+
+Sub-collection: events/{eventCode}/guestQuestions/{questionId}
+  Stores the Google Forms-style questionnaire for private events.
+  Fields:
+    question    : String    — The question text
+    type        : String    — short_answer, paragraph, multiple_choice,
+                               checkbox, or dropdown
+    options     : List      — Answer options (for MCQ/checkbox/dropdown)
+    isRequired  : Boolean   — Whether the question must be answered
+    order       : int       — Display order in the form
+    createdAt   : Timestamp
+
+Sub-collection: events/{eventCode}/chat/{messageId}
+  Real-time chat messages between leader and members.
+
+Sub-collection: events/{eventCode}/notification/{notificationId}
+  Event-level notifications (broadcast to all participants).
+
+Sub-collection: events/{eventCode}/permissions/{permissionId}
+  Role-based permission grants (e.g., member can manage guests).
+
+INITIALIZATION PATTERN:
+  When a new event is created, the following "init" documents are created
+  as placeholders in each sub-collection to ensure they appear in the
+  Firestore console:
+    events/{code}/member/init       → {}
+    events/{code}/guest/init        → {}
+    events/{code}/Guest/init        → {}
+    events/{code}/sub-events/init   → {}
+    events/{code}/chat/init         → {}
+    events/{code}/notification/init → {}
+    events/{code}/permissions/init  → {}
+
+  All queries throughout the app use .where((doc) => doc.id != "init")
+  to exclude these placeholder documents from results.
+
+
+
+================================================================================
+SECTION B — FILE-BY-FILE DOCUMENTATION
+================================================================================
+
+
+================================================================================
+PHASE 1: HOME SECTION
+================================================================================
+This section covers the entry point of the application, the splash/routing
+screen, role selection, authentication, event creation, and shared services.
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILE: lib/main.dart
+────────────────────────────────────────────────────────────────────────────────
+Type       : Application Entry Point
+Lines      : 29
+Imports    : flutter/material.dart, firebase_core, firebase_options.dart,
+             face_page.dart
+Connects To: face_page.dart (sets it as the home widget)
+
+PURPOSE:
+  This is the very first file executed when FestFlow launches. It performs
+  two critical tasks before any UI is rendered:
+
+  1. WidgetsFlutterBinding.ensureInitialized() — Guarantees the Flutter engine
+     is fully initialized before making asynchronous calls. Without this, the
+     Firebase.initializeApp() call would crash.
+
+  2. Firebase.initializeApp() — Loads the Firebase configuration from
+     firebase_options.dart (auto-generated by FlutterFire CLI). This must
+     complete before ANY Firebase service (Auth, Firestore, Storage) can be
+     used anywhere in the app.
+
+  After initialization, it creates a MaterialApp with:
+    - debugShowCheckedModeBanner: false (removes the debug banner)
+    - title: 'FestFlow'
+    - theme: ThemeData(primarySwatch: Colors.indigo) — the global color scheme
+    - home: FacePage() — the splash/routing screen
+
+BACKEND: No direct Firestore interaction. Purely initialization.
+FRONTEND: Creates the root MaterialApp widget tree.
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILE: lib/global.dart
+────────────────────────────────────────────────────────────────────────────────
+Type       : Global State Container
+Lines      : 5
+Imports    : None
+Connects To: Every dashboard (Leader, Member, Guest), all services
+
+PURPOSE:
+  Contains a single static class GlobalState with one static variable:
+
+    static String? activeEventCode;
+
+  This variable is the backbone of the entire application. It stores the
+  currently active event code that the user is interacting with. It is set
+  during login (face_page.dart) or during event creation (host_zone.dart)
+  and is read by every dashboard to fetch event-specific data from Firestore.
+
+  Without this variable, dashboards would not know which event to query.
+  It persists across widget rebuilds because it is a static field.
+
+  The variable is cleared (set to null) during logout to prevent stale data
+  from leaking between sessions.
+
+PATTERN: Singleton-style global state. No dependency injection framework
+         (Provider, Riverpod, Bloc) is used — this is intentional for
+         simplicity in a project of this scope.
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILE: lib/firebase_options.dart
+────────────────────────────────────────────────────────────────────────────────
+Type       : Auto-Generated Configuration
+Lines      : ~80
+Imports    : firebase_core
+Connects To: main.dart
+
+PURPOSE:
+  Auto-generated by the FlutterFire CLI (flutterfire configure). Contains
+  platform-specific Firebase configuration for Android, iOS, and Web.
+
+  Key data stored:
+    - apiKey           — Firebase API key for the project
+    - appId            — Unique Firebase app identifier
+    - messagingSenderId— For push notifications (FCM)
+    - projectId        — Firebase project name
+    - storageBucket    — Firebase Storage bucket URL
+    - iosClientId      — iOS OAuth client ID
+    - iosBundleId      — iOS bundle identifier
+
+  DO NOT EDIT THIS FILE MANUALLY. Re-run `flutterfire configure` to update.
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILE: lib/home/face_page.dart
+────────────────────────────────────────────────────────────────────────────────
+Type       : Splash Screen + Auto-Login Router
+Lines      : 203
+Imports    : firebase_auth, cloud_firestore, google_sign_in, home_page.dart,
+             leader_dashboard.dart, member_dashboard.dart, guest_dashboard.dart,
+             all_event_list.dart, loading_bar.dart, logo_with_name.dart
+Connects To: HomePage, LeaderDashboard, MemberDashboard, GuestDashboard,
+             AllEventList
+Firestore  : Reads users/{email}/events, events/{eventCode}
+
+PURPOSE:
+  The first screen users see — a branded splash screen with "FestFlow" text,
+  tagline "The Streamlined Way to Manage Events", and a loading spinner.
+
+  While the splash is displayed, _checkAutoLogin() runs in the background:
+
+  AUTO-LOGIN ALGORITHM:
+    1. Check if FirebaseAuth has a cached current user (user from last session)
+    2. If no user -> navigate to HomePage (role selection)
+    3. If user exists -> query users/{email}/events to find their first event
+    4. Extract the role from the event document:
+       - "leader" -> Check if events/{code}.isApproved == true -> LeaderDashboard
+       - "member" -> Check if events/{code}.isApproved == true -> MemberDashboard
+       - "guest" + isApproved == true -> GuestDashboard
+       - "guest" + isApproved == false -> AllEventList (waiting for approval)
+    5. Set GlobalState.activeEventCode = eventCode
+    6. All navigations use Future.delayed(3 seconds) for splash visibility
+
+  This ensures returning users skip the login screen entirely and land on
+  their appropriate dashboard.
+
+FRONTEND: Scaffold with centered Column (logo, tagline, loading bar).
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILE: lib/home/dashboard/home_page.dart
+────────────────────────────────────────────────────────────────────────────────
+Type       : Role Selection Screen
+Lines      : ~70
+Imports    : host_zone.dart, guest_zone.dart, help.dart
+Connects To: HostZone, GuestZone, Help
+
+PURPOSE:
+  The main landing page after splash for unauthenticated users. Presents
+  two primary action buttons:
+
+    1. "Host Zone" -> Navigates to HostZone (for Leaders and Members)
+    2. "Guest Zone" -> Navigates to GuestZone (for Guests)
+
+  Also includes a Help button in the AppBar that navigates to the FAQ screen.
+  The design uses Card widgets with Icons for visual clarity.
+
+BACKEND: No Firestore interaction. Purely navigational.
+FRONTEND: Scaffold with two large tappable cards.
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILE: lib/home/dashboard/host_zone.dart
+────────────────────────────────────────────────────────────────────────────────
+Type       : Host Authentication and Event Code Entry
+Lines      : ~280
+Imports    : auth_service.dart, firestore_service.dart, leader_signup.dart,
+             member_signup.dart, leader_dashboard.dart, member_dashboard.dart
+Connects To: AuthService, FirestoreService, LeaderDashboard, MemberDashboard,
+             LeaderSignup, MemberSignup
+Firestore  : Reads leader/{email}/events, events/{eventCode}/member/{email},
+             users/{email}/events
+
+PURPOSE:
+  This is the authentication hub for Leaders and Members. It contains:
+
+  1. ROLE TOGGLE — Radio buttons to select "Leader" or "Member" role.
+
+  2. GOOGLE SIGN-IN BUTTON — Triggers AuthService.signInWithGoogle(role).
+     After sign-in:
+     - For Leaders: Validates event code against leader/{email}/events/{code}.
+       If approved, navigates to LeaderDashboard.
+     - For Members: Checks events/{code}/member/{email}.isJoined.
+       If joined, navigates to MemberDashboard.
+       If invited but not joined, calls FirestoreService.joinEventAsMember().
+
+  3. EVENT CODE TEXT FIELD — Manual entry for the 6-character event code.
+
+  4. "CREATE EVENT" BUTTON — Only visible for Leaders. Navigates to the
+     4-step event creation wizard (signup/).
+
+  5. "SIGN UP" BUTTON — Navigates to LeaderSignup or MemberSignup based
+     on the selected role.
+
+  Sets GlobalState.activeEventCode upon successful authentication.
+
+BACKEND: Heavy Firestore reads for validation.
+FRONTEND: Column with role toggle, Google Sign-In button, event code field.
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILE: lib/home/dashboard/guest_zone.dart
+────────────────────────────────────────────────────────────────────────────────
+Type       : Guest Authentication and Event Code Entry
+Lines      : ~70
+Connects To: GuestSignup, GuestDashboard
+Firestore  : Reads events/{eventCode}/Guest/{email}, users/{email}/events
+
+PURPOSE:
+  Simplified authentication screen for guests. Contains:
+  1. Google Sign-In button for guest login
+  2. Event code text field for manual entry
+  3. "Sign Up" button navigates to GuestSignup
+
+  Upon successful login, checks if the guest is already approved:
+  - Approved -> GuestDashboard
+  - Not approved -> Shows "Waiting for approval" message
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILE: lib/home/dashboard/all_event_list.dart
+────────────────────────────────────────────────────────────────────────────────
+Type       : Public Event Browser
+Lines      : ~200
+Connects To: AboutEventDetails
+Firestore  : Reads events (root collection), filters by isApproved == true
+
+PURPOSE:
+  Displays a searchable, scrollable list of all approved public events.
+  Each event is rendered as a Card with:
+    - Event image (from details.image URL) or a fallback icon
+    - Event title
+    - Event location (with text overflow ellipsis)
+    - "View Details" button navigates to AboutEventDetails
+
+  Includes a search bar at the top that filters events by title in real-time.
+  Uses StreamBuilder to listen for new events being added to Firestore.
+
+  Image loading includes an errorBuilder that displays Icons.event as a
+  fallback when the image URL is broken or missing, preventing red box errors.
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILE: lib/home/dashboard/about_event_details.dart
+────────────────────────────────────────────────────────────────────────────────
+Type       : Event Detail Page + Join Flow
+Lines      : ~450
+Connects To: GuestDashboard, FirestoreService
+Firestore  : Reads events/{eventCode}/details, events/{eventCode}/guestQuestions,
+             Writes events/{eventCode}/Guest/{email}
+
+PURPOSE:
+  Full-screen event details page accessible from AllEventList. Displays:
+    - Large event banner image
+    - Title, description, date, location, type, amount
+    - "Join as Guest" button
+
+  The Join Flow:
+    1. User taps "Join as Guest"
+    2. If the event has guest questions (guestQuestions sub-collection):
+       - Presents the Google Forms-style questionnaire
+       - User must answer all required questions
+       - Answers are submitted to Firestore
+    3. Calls FirestoreService.joinEventAsGuest()
+    4. Guest is added with isApproved = false (pending leader approval)
+    5. Navigates to a "waiting for approval" state
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILE: lib/home/dashboard/event_qr_scanner.dart
+────────────────────────────────────────────────────────────────────────────────
+Type       : QR Code Scanner
+Lines      : ~120
+Connects To: AboutEventDetails
+Firestore  : Reads events/{scannedCode} to validate existence
+
+PURPOSE:
+  Camera-based QR code scanner using the mobile_scanner package. When a QR
+  code is detected:
+    1. Extract the scanned string (expected to be an event code)
+    2. Query Firestore to verify events/{scannedCode} exists
+    3. If valid -> navigate to AboutEventDetails with the event data
+    4. If invalid -> show error SnackBar
+  Uses MobileScanner widget with onDetect callback for real-time scanning.
+  Includes a torch toggle button and camera flip button.
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILE: lib/home/auth/leader_signup.dart
+────────────────────────────────────────────────────────────────────────────────
+Type       : Leader Registration
+Lines      : ~130
+Connects To: AuthService, FirestoreService, SignupWizard (Step 1-4)
+Firestore  : Writes leader/{email}, triggers event creation wizard
+
+PURPOSE:
+  Registration screen for new leaders. Flow:
+    1. Google Sign-In via AuthService.signUpWithGoogle()
+    2. Username entry with availability check (FirestoreService.isUsernameTaken)
+    3. Profile saved to leader/{email} via FirestoreService.saveUserDetails()
+    4. Navigates to the 4-step event creation wizard (signup/)
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILE: lib/home/auth/member_signup.dart
+────────────────────────────────────────────────────────────────────────────────
+Type       : Member Registration + Invitation Verification
+Lines      : ~130
+Connects To: AuthService, FirestoreService, MemberDashboard
+Firestore  : Reads events/{code}/member/{email}, Writes users/{email}
+
+PURPOSE:
+  Registration for new members. Key difference from leader signup:
+    1. Google Sign-In
+    2. Event code entry (must match an existing event)
+    3. INVITATION CHECK - calls FirestoreService.checkMemberInvitation() to
+       verify the member was pre-invited by the leader
+    4. If invited -> calls FirestoreService.joinEventAsMember()
+    5. Profile saved to users/{email}
+    6. Navigates to MemberDashboard
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILE: lib/home/auth/guest_signup.dart
+────────────────────────────────────────────────────────────────────────────────
+Type       : Guest Registration + Questionnaire
+Lines      : ~180
+Connects To: AuthService, FirestoreService, GuestDashboard
+Firestore  : Reads events/{code}/guestQuestions, Writes users/{email},
+             Writes events/{code}/Guest/{email}
+
+PURPOSE:
+  Guest registration flow with optional questionnaire:
+    1. Google Sign-In
+    2. Username entry
+    3. Event code entry
+    4. If event has guestQuestions -> present the Q and A form
+    5. Submit answers and profile
+    6. Guest starts in "pending" state (isApproved = false)
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILE: lib/home/auth/forgot_eventcode.dart
+────────────────────────────────────────────────────────────────────────────────
+Type       : Event Code Recovery
+Lines      : ~60
+Firestore  : Reads users/{email}/events
+Purpose    : Allows users to recover their event code by email lookup.
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILES: lib/home/signup/signup_1 through signup_4
+────────────────────────────────────────────────────────────────────────────────
+Type       : 4-Step Event Creation Wizard
+Total Lines: ~1100 across 4 files
+
+  Step 1 (signup_1_how_to_nominate.dart):
+    Collects event title, type (public/private), category, and image upload.
+
+  Step 2 (signup_2_choose_location.dart):
+    GPS-based location picker using geolocator and geocoding packages.
+    "Use Current Location" button or manual address entry.
+
+  Step 3 (signup_3_describe_event.dart):
+    Detailed description, start/end dates (DatePicker), attendance count,
+    entry fee, and additional notes.
+
+  Step 4 (signup_4_review.dart):
+    Final review of all data. Generates unique event code. Submit button
+    saves to leader/{email}/events/{code} and calls createEventStructure()
+    to build the full Firestore event hierarchy.
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILES: lib/home/services/ (4 files)
+────────────────────────────────────────────────────────────────────────────────
+
+  auth_service.dart (100 lines):
+    Google Sign-In with role-based Firestore validation.
+    Methods: signInWithGoogle(), signUpWithGoogle(), getCurrentUserId(),
+    getCurrentMail(). Forces sign-out before sign-in for account picker.
+
+  firestore_service.dart (358 lines):
+    ALL Firestore CRUD operations. Leader methods, User methods, Shared
+    methods. Creates event structures, manages member/guest joins,
+    validates usernames, checks invitations.
+
+  gemini_service.dart (36 lines):
+    Google Gemini 2.0 Flash API integration. Generates AI event analytics
+    reports with summaries, highlights, and recommendations.
+
+  user_service.dart (28 lines):
+    Legacy auth helper. Simplified Google Sign-In without role validation.
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILES: lib/home/widgets/ and lib/home/help/
+────────────────────────────────────────────────────────────────────────────────
+
+  loading_bar.dart: Animated CircularProgressIndicator widget.
+  logo_with_name.dart: Logo + app name branding widget.
+  help.dart: FAQ screen with ExpansionTile widgets and email support.
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILES: lib/theme/ and lib/widgets/
+────────────────────────────────────────────────────────────────────────────────
+
+  floating_Action_Button.dart: Reusable FAB factory function. Consistent
+  styling across all screens. Accepts icon and onPressed parameters.
+
+  qr_viewer_dialog.dart (109 lines): AlertDialog with QR code display and
+  share functionality. Generates QR image, saves to temp directory, and
+  shares via Share.shareXFiles(). Used by Leader and Member dashboards.
+
+
+
+================================================================================
+PHASE 2: LEADER SECTION
+================================================================================
+The Leader module is the largest module in FestFlow. The Leader has full
+administrative control over the event and all its sub-entities.
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILE: lib/leader/screens/leader_dashboard.dart
+────────────────────────────────────────────────────────────────────────────────
+Type       : Main Leader Dashboard (PRIMARY SCREEN)
+Lines      : 421
+Imports    : flutter/material.dart, cloud_firestore, firebase_auth,
+             floating_Action_Button.dart, stats_widget.dart, floating_menu.dart,
+             profile_screen.dart, notification_screen.dart, settings_page.dart,
+             edit_event.dart, global.dart, qr_viewer_dialog.dart
+Connects To: ProfileScreen, NotificationScreen, SettingsPage, EditEvent,
+             QRViewerDialog, FloatingMenu, StatsWidget
+Firestore  : Reads events/{eventCode}, events/{eventCode}/sub-events,
+             events/{eventCode}/member, events/{eventCode}/guest
+             Writes users/{email}.isOnline, events/{code}/leader/{email}.isOnline
+
+PURPOSE:
+  This is the command center of the entire FestFlow application. When a Leader
+  logs in, this is the first screen they see. It is a StatefulWidget that
+  implements the WidgetsBindingObserver mixin for online/offline presence
+  tracking.
+
+STATE VARIABLES:
+  - _menuOpen (bool)         — Controls floating menu visibility
+  - eventCode (String?)      — The active event code from GlobalState
+  - eventDetails (Map?)      — Event metadata fetched from Firestore
+  - isLoading (bool)         — Loading state flag
+  - isOnline (bool)          — Local online presence indicator
+  - _user (User?)            — Current Firebase Auth user
+  - totalSubEvents (int)     — Count of sub-events
+  - totalMembers (int)       — Count of joined members
+  - totalGuests (int)        — Count of registered guests
+
+LIFECYCLE MANAGEMENT:
+  initState():
+    1. Adds WidgetsBindingObserver to track app lifecycle
+    2. Calls fetchEventCode() to load event data
+    3. Calls _setOnlineStatus(true) to mark the leader as online
+
+  dispose():
+    1. Removes WidgetsBindingObserver
+    2. Calls _setOnlineStatus(false) to mark offline
+
+  didChangeAppLifecycleState(AppLifecycleState state):
+    - AppLifecycleState.resumed  -> _setOnlineStatus(true)
+    - AppLifecycleState.paused   -> _setOnlineStatus(false)
+    - AppLifecycleState.detached -> _setOnlineStatus(false)
+
+ONLINE STATUS METHOD (_setOnlineStatus):
+  Updates TWO Firestore documents simultaneously:
+    1. users/{email}.isOnline = true/false
+    2. events/{code}/leader/{email}.isOnline = true/false
+  Also calls setState() to update the local green/grey dot indicator.
+
+DATA FETCHING:
+  fetchEventCode():
+    1. Gets current user from FirebaseAuth
+    2. Tries GlobalState.activeEventCode first
+    3. If null -> FALLBACK: queries users/{email}/events to find event code
+    4. Sets GlobalState.activeEventCode if found via fallback
+    5. Calls fetchEventDetails() and fetchStats()
+
+  fetchEventDetails(String code):
+    1. Reads events/{code} from Firestore
+    2. Extracts the "details" map field
+    3. Sets eventDetails state variable
+
+  fetchStats():
+    1. Counts sub-events (excluding "init" docs)
+    2. Counts members where isJoined == true
+    3. Counts guests (excluding "init" docs)
+    4. Updates totalSubEvents, totalMembers, totalGuests
+
+UI LAYOUT:
+  AppBar:
+    - Title: "Leader Dashboard"
+    - Actions (right side):
+      a. Online indicator (green/grey CircleAvatar + "Online"/"Offline" text)
+      b. QR code button (opens QRViewerDialog)
+      c. Settings button (navigates to SettingsPage)
+
+  Body (SingleChildScrollView):
+    - Event image (with network error fallback)
+    - Event title (bold, 24px)
+    - Event details card (dynamically renders all fields except restricted ones)
+    - StatsWidget (3 stats: Sub-Events, Members, Guests)
+
+  BottomAppBar:
+    - Profile button (navigates to ProfileScreen)
+    - Notification button (navigates to NotificationScreen)
+
+  FloatingActionButton:
+    - Toggles FloatingMenu visibility
+    - Icon changes between add (+) and close (x)
+
+  FloatingMenu (overlay):
+    - Blurred background with positioned action buttons
+    - Sub-events, Members, Guests, Analytics, Chat, Settings buttons
+
+BACKEND SUMMARY:
+  Reads: events/{code}, events/{code}/sub-events, /member, /guest
+  Writes: users/{email}.isOnline, events/{code}/leader/{email}.isOnline
+
+FRONTEND SUMMARY:
+  Widget tree: Scaffold -> Stack -> [ScrollView, FloatingMenu]
+                        -> BottomAppBar -> Row[Profile, Notification]
+                        -> FAB
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILE: lib/leader/screens/edit_event.dart
+────────────────────────────────────────────────────────────────────────────────
+Type       : Event Editor
+Lines      : ~300
+Firestore  : Reads and Writes events/{eventCode}/details
+
+PURPOSE:
+  Allows the leader to modify event details after creation. Pre-fills all
+  form fields with current values from Firestore. Supports editing:
+    - Title, description, location, date, type, amount, image
+  On save, updates the events/{code} details map in Firestore.
+  Includes image upload via ImagePicker and Firebase Storage.
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILE: lib/leader/screens/profile_screen.dart
+────────────────────────────────────────────────────────────────────────────────
+Type       : Leader Profile Management
+Lines      : ~260
+Firestore  : Reads/Writes leader/{email}
+
+PURPOSE:
+  Displays and allows editing of the leader's profile:
+    - Profile photo (upload via ImagePicker, store in Firebase Storage)
+    - Username, email (read-only)
+    - Display of events created
+    - Account creation date
+  Uses email-based document lookup (not UID) for robustness.
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILE: lib/leader/screens/notification_screen.dart
+────────────────────────────────────────────────────────────────────────────────
+Type       : Real-Time Notification Feed
+Lines      : ~260
+Firestore  : Reads users/{email}/notifications (StreamBuilder)
+
+PURPOSE:
+  Real-time notification feed using StreamBuilder on the user's notification
+  sub-collection. Displays:
+    - Notification title
+    - Notification body text
+    - Timestamp
+  Ordered by timestamp (newest first). Includes pull-to-refresh.
+  Also allows sending notifications to event members/guests.
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILE: lib/leader/screens/help_support.dart
+────────────────────────────────────────────────────────────────────────────────
+Type       : Help and Support Screen
+Lines      : ~60
+Purpose    : FAQ and support email integration.
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILE: lib/leader/screens/analytics/analytics_screen.dart
+────────────────────────────────────────────────────────────────────────────────
+Type       : AI-Powered Analytics Dashboard
+Lines      : ~280
+Imports    : fl_chart, csv, gemini_service.dart
+Firestore  : Reads events/{code}/sub-events, /member, /guest
+
+PURPOSE:
+  Comprehensive analytics dashboard with three sections:
+
+  1. STATISTICS CARDS — Sub-event count, member count, guest count,
+     attendance rate calculations.
+
+  2. CHARTS (fl_chart) — Bar charts showing sub-event distribution,
+     member participation rates, and guest approval ratios.
+
+  3. AI REPORT — Calls GeminiService.generateEventReport() with the
+     compiled statistics. Displays Gemini's response with recommendations,
+     highlights, and improvement suggestions.
+
+  4. CSV EXPORT — Button to export all analytics data as a CSV file
+     using the csv package. Saved to device storage.
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILES: lib/leader/screens/sub_events/ (6 files)
+────────────────────────────────────────────────────────────────────────────────
+
+  sub_event_page.dart (~170 lines):
+    Main sub-event listing page. Shows all sub-events for the event as
+    Cards. Each card displays title, date, time, location, and assigned
+    members count. Tap to navigate to SubEventDetails. Search and add
+    buttons in AppBar.
+    Firestore: StreamBuilder on events/{code}/sub-events
+
+  add_sub_event.dart (~270 lines):
+    Form to create a new sub-event. Fields: title, description, date
+    (DatePicker), time (TimePicker), location, type/category, member
+    assignment (multi-select from member list).
+    Firestore: Writes events/{code}/sub-events/{id}
+
+  edit_sub_event.dart (~270 lines):
+    Mirror of add_sub_event.dart but pre-fills existing data for editing.
+    Firestore: Reads and Updates events/{code}/sub-events/{id}
+
+  sub_event_details.dart (~310 lines):
+    Detailed view of a single sub-event. Shows all metadata plus assigned
+    member list with online status indicators. Edit and delete buttons.
+    Firestore: Reads events/{code}/sub-events/{id}
+
+  manage_sub_event.dart (~200 lines):
+    Administrative controls for a sub-event. Assign/unassign members,
+    update status, send notifications to assigned team.
+    Firestore: Updates events/{code}/sub-events/{id}
+
+  search_sub_event.dart (~120 lines):
+    Real-time search across sub-event titles and descriptions.
+    Firestore: Reads events/{code}/sub-events, client-side filtering
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILES: lib/leader/screens/members/ (5 files)
+────────────────────────────────────────────────────────────────────────────────
+
+  member_page.dart (~300 lines):
+    Main member management page. Two sections:
+    1. Joined Members — active team members with online indicators
+    2. Pending Invitations — invited but not yet joined
+    Each member shown as Card with profile info. Tap for details.
+    Firestore: StreamBuilder on events/{code}/member
+
+  add_member.dart (~130 lines):
+    Email-based member invitation. Leader enters the email of the person
+    they want to invite. Creates a document at events/{code}/member/{email}
+    with isJoined = false. The invitee sees this when they sign up.
+    Firestore: Writes events/{code}/member/{email}
+
+  member_details.dart (~170 lines):
+    Full profile of a single member. Shows: name, email, profile photo,
+    join date, online status, assigned sub-events list.
+    Firestore: Reads events/{code}/member/{email}
+
+  manage_members.dart (~130 lines):
+    Admin controls: remove member, change permissions, send notification.
+    Firestore: Deletes/Updates events/{code}/member/{email}
+
+  search_members.dart (~120 lines):
+    Search members by name or email with real-time filtering.
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILES: lib/leader/screens/guest/ (3 files)
+────────────────────────────────────────────────────────────────────────────────
+
+  guest_page.dart (~190 lines):
+    Guest management hub. Two tabs:
+    1. Approved Guests — guests who have been approved
+    2. Pending Approval — guests waiting for leader review
+    Firestore: StreamBuilder on events/{code}/guest and events/{code}/Guest
+
+  approve_guest_page.dart (~360 lines):
+    Guest review and approval screen. Displays:
+    - Guest profile information
+    - Questionnaire responses (if private event)
+    - "Approve" and "Reject" buttons
+    On approval: updates isApproved = true, moves from Guest to guest
+    collection, sends notification to the guest.
+    Firestore: Reads/Writes events/{code}/Guest/{email},
+               Writes users/{email}/notifications
+
+  guest_questions_page.dart (~504 lines):
+    Google Forms-style question builder. THE MOST COMPLEX WIDGET.
+    Features:
+      1. Add/Edit/Delete questions via dialog
+      2. Supported types: short_answer, paragraph, multiple_choice,
+         checkbox, dropdown
+      3. Each question has: text, type, options (for MCQ), isRequired, order
+      4. Questions are stored in events/{code}/guestQuestions
+      5. Drag-to-reorder support
+      6. Preview shows question cards with type badges and option lists
+    Firestore: Full CRUD on events/{code}/guestQuestions
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILES: lib/leader/screens/settings/ (7 files)
+────────────────────────────────────────────────────────────────────────────────
+
+  settings_page.dart:
+    Settings hub with ListTile options. Subtitles on each option.
+    Sign-out with confirmation dialog (Firebase + Google sign out).
+    Navigates back to HomePage on sign-out.
+
+  account_settings.dart:
+    Profile editing, username change, profile photo management.
+    Firestore: Reads/Writes leader/{email}
+
+  chat_screen.dart:
+    AI-powered chat using Gemini API. Send messages and get AI responses.
+
+  general_settings.dart: Language and theme preferences (placeholder).
+  notification_settings.dart: Push notification toggle switches.
+  privacy_settings.dart: Data and privacy policy display.
+  about_page.dart: App version and developer information.
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILES: lib/leader/widgets/ (2 files)
+────────────────────────────────────────────────────────────────────────────────
+
+  floating_menu.dart (~110 lines):
+    Blurred overlay menu with positioned action buttons:
+    Sub-Events, Members, Guests, Analytics, Chat, Settings
+    Each button is a FloatingActionButton with hero tag.
+    Uses BackdropFilter for blur effect and GestureDetector to close.
+
+  stats_widget.dart (~40 lines):
+    Dashboard statistics card with three counters:
+    Sub-Events, Members, Guests. Displayed in a Row with Column items.
+
+
+================================================================================
+PHASE 3: MEMBER SECTION
+================================================================================
+The Member module mirrors the Leader module with reduced privileges.
+Members cannot create events, invite members, or approve guests.
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILE: lib/member/screens/member_dashboard.dart
+────────────────────────────────────────────────────────────────────────────────
+Type       : Main Member Dashboard
+Lines      : 420+
+Connects To: ProfileScreen, NotificationScreen, SettingsPage, FloatingMenu
+Firestore  : Reads events/{code}, events/{code}/sub-events, /member, /guest
+             Writes users/{email}.isOnline, events/{code}/member/{email}.isOnline
+
+PURPOSE:
+  Nearly identical structure to LeaderDashboard with these key differences:
+    - Uses WidgetsBindingObserver for online presence (same as Leader)
+    - Reads from events/{code}/member/{email} instead of /leader/{email}
+    - Stats shows sub-events, members, guests (read-only)
+    - No "Edit Event" or member invitation capabilities
+    - QR code button still available for sharing event code
+    - Same fallback eventCode fetch from Firestore if GlobalState is null
+
+  Floating menu contains: Events, Members, Analytics, Chat, Settings
+  (no Guest management or Add Member options)
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILE: lib/member/screens/member_event_page.dart
+────────────────────────────────────────────────────────────────────────────────
+Type       : Sub-Event List (Read-Only)
+Lines      : ~190
+Firestore  : Reads events/{code}/sub-events
+
+PURPOSE:
+  Lists all sub-events for the event. Members can view sub-event details
+  but cannot create or edit them. Similar layout to leader's sub_event_page
+  but without add/edit/delete actions.
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILE: lib/member/screens/member_event_details.dart
+────────────────────────────────────────────────────────────────────────────────
+Type       : Sub-Event Detail View (Read-Only)
+Lines      : ~220
+Firestore  : Reads events/{code}/sub-events/{id}
+Purpose    : Detailed view of a sub-event with metadata and assigned team.
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILE: lib/member/screens/member_list.dart
+────────────────────────────────────────────────────────────────────────────────
+Type       : Team Member Directory
+Lines      : ~150
+Firestore  : Reads events/{code}/member
+Purpose    : View-only list of all team members with online indicators.
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILE: lib/member/screens/member_analytics_screen.dart
+────────────────────────────────────────────────────────────────────────────────
+Type       : Analytics Dashboard (Read-Only)
+Lines      : ~280
+Firestore  : Reads events/{code}/sub-events, /member, /guest
+Purpose    : Same as leader analytics but without admin controls or CSV export.
+             Still includes AI report generation via GeminiService.
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILES: lib/member/screens/ (remaining)
+────────────────────────────────────────────────────────────────────────────────
+
+  profile_screen.dart: Member profile with photo upload. Uses email lookup.
+  notification_screen.dart: Real-time notification feed (StreamBuilder).
+  help_support.dart: FAQ and email support.
+  settings/ (7 files): Same structure as leader settings with sign-out.
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILES: lib/member/widgets/ (2 files)
+────────────────────────────────────────────────────────────────────────────────
+
+  floating_menu.dart: Events, Members, Analytics, Chat, Settings buttons.
+  stats_widget.dart: Dashboard statistics card (Sub-Events, Members, Guests).
+
+
+================================================================================
+PHASE 4: GUEST SECTION
+================================================================================
+The Guest module is the lightest module. Guests are consumers who browse
+events and attend sub-events. They have minimal administrative capability.
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILE: lib/guest/screens/guest_dashboard.dart
+────────────────────────────────────────────────────────────────────────────────
+Type       : Main Guest Dashboard
+Lines      : ~260
+Connects To: ProfileScreen, NotificationScreen, SettingsPage, FloatingMenu
+Firestore  : Reads events/{code}, events/{code}/sub-events
+
+PURPOSE:
+  Simplified dashboard for guests. Key differences from Leader/Member:
+    - No bottom navigation bar (removed in recent refactor)
+    - Profile, Notifications, Settings moved to AppBar as icon buttons
+    - Stats widget shows "Sub-Events" count (fixed label from "Events")
+    - No online/offline presence tracking (guests are passive users)
+    - Floating menu has only 2 buttons: Events and Emergency
+    - Includes Firestore fallback for eventCode resolution
+
+  UI: AppBar -> [Profile, Notifications, Settings icons]
+      Body -> Event image, title, details card, StatsWidget
+      FAB -> FloatingMenu toggle
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILE: lib/guest/screens/guest_sub_event_list.dart
+────────────────────────────────────────────────────────────────────────────────
+Type       : Sub-Event Browser
+Lines      : ~160
+Firestore  : Reads events/{code}/sub-events
+Purpose    : Read-only list of all sub-events available to guests.
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILE: lib/guest/screens/guest_sub_event_details.dart
+────────────────────────────────────────────────────────────────────────────────
+Type       : Sub-Event Detail View
+Lines      : ~100
+Firestore  : Reads events/{code}/sub-events/{id}
+Purpose    : Detailed view of a single sub-event for guests.
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILE: lib/guest/screens/profile_screen.dart
+────────────────────────────────────────────────────────────────────────────────
+Type       : Guest Profile
+Lines      : ~280
+Firestore  : Reads users/{email}
+Purpose    : Guest profile display. Uses email-based Firestore lookups
+             instead of UID to prevent crashes. Displays profile photo,
+             name, email, and event participation history.
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILE: lib/guest/screens/notification_screen.dart
+────────────────────────────────────────────────────────────────────────────────
+Type       : Real-Time Notification Feed
+Lines      : ~100
+Firestore  : StreamBuilder on users/{email}/notifications
+Purpose    : Live notification feed. Connected to Firestore backend
+             (refactored from static list in previous session).
+             Ordered by timestamp, shows title, subtitle, and time ago.
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILES: lib/guest/screens/settings/ (7 files)
+────────────────────────────────────────────────────────────────────────────────
+  Same structure as leader settings. Sign-out with confirmation dialog
+  using FirebaseAuth.signOut() and GoogleSignIn().signOut(). Navigates
+  to HomePage. Subtitles on each settings option.
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILE: lib/guest/widgets/floating_menu.dart
+────────────────────────────────────────────────────────────────────────────────
+Type       : Guest Floating Action Menu
+Lines      : ~100
+Imports    : url_launcher
+Connects To: GuestEventDetails, Phone dialer
+
+PURPOSE:
+  Stripped-down floating menu with only TWO buttons:
+
+  1. EVENTS (blue) — Navigates to GuestEventDetails (sub-event list)
+  2. EMERGENCY (red) — Opens the native phone dialer with emergency
+     number 112 via url_launcher package. Uses URI scheme "tel:112".
+
+  Uses BackdropFilter for blur effect, same as leader/member menus.
+  Each button has a heroTag for animation consistency.
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILE: lib/guest/widgets/stats_widget.dart
+────────────────────────────────────────────────────────────────────────────────
+Type       : Dashboard Statistics Card
+Lines      : ~44
+Purpose    : Displays "Sub-Events" and "Attendees" counts in a Card layout.
+             Label fixed from "Events" to "Sub-Events" in recent refactor.
+
+
+
+================================================================================
+SECTION C — SOFTWARE REQUIREMENT SPECIFICATION
+================================================================================
+
+
+================================================================================
+5. PROPOSED METHODOLOGY
+================================================================================
+
+5.1 ARCHITECTURE: Model-View-Controller (MVC) with Firebase BaaS
+─────────────────────────────────────────────────────────────────
+
+FestFlow follows a modified MVC architecture adapted for Flutter:
+
+  MODEL LAYER (Data):
+    - GlobalState (global.dart) — in-memory state container
+    - Firestore documents — persistent cloud storage
+    - Firebase Auth — authentication state
+
+  VIEW LAYER (UI):
+    - All widget files (*_dashboard.dart, *_screen.dart, *_page.dart)
+    - Theme widgets (floating_Action_Button.dart)
+    - Custom widgets (stats_widget.dart, floating_menu.dart)
+
+  CONTROLLER LAYER (Business Logic):
+    - Services (auth_service.dart, firestore_service.dart, gemini_service.dart)
+    - State management within StatefulWidget setState() calls
+    - StreamBuilder widgets for reactive data binding
+
+  BACKEND-AS-A-SERVICE (BaaS):
+    - Firebase provides the entire backend infrastructure
+    - No custom server, API endpoints, or database server is needed
+    - Real-time data synchronization via Firestore streams
+    - Authentication via Firebase Auth + Google OAuth
+    - File storage via Firebase Storage
+    - Analytics via Firebase Analytics
+
+5.2 DATA FLOW DIAGRAMS (DFDs)
+─────────────────────────────
+
+LEVEL 0 — CONTEXT DIAGRAM:
+
+  [External User] ----> [FestFlow Application] ----> [Firebase Cloud]
+                  <----                         <----
+
+  The system has one external entity (User) interacting with the FestFlow
+  application, which in turn communicates with Firebase Cloud services.
+
+LEVEL 1 — MAJOR PROCESSES:
+
+  Process 1.0: AUTHENTICATION
+    Input:  Google Account credentials
+    Output: Authenticated User object + Role assignment
+    Store:  Firebase Auth, leader/{email}, users/{email}
+
+  Process 2.0: EVENT MANAGEMENT
+    Input:  Event details (title, location, date, etc.)
+    Output: Created event with unique code
+    Store:  leader/{email}/events/{code}, events/{code}
+
+  Process 3.0: MEMBER MANAGEMENT
+    Input:  Member email for invitation
+    Output: Member invitation / acceptance
+    Store:  events/{code}/member/{email}, users/{email}/events
+
+  Process 4.0: GUEST MANAGEMENT
+    Input:  Guest registration + questionnaire answers
+    Output: Guest approval status
+    Store:  events/{code}/Guest/{email}, events/{code}/guest/{email}
+
+  Process 5.0: SUB-EVENT MANAGEMENT
+    Input:  Sub-event details
+    Output: Created/updated sub-event
+    Store:  events/{code}/sub-events/{id}
+
+  Process 6.0: ANALYTICS AND REPORTING
+    Input:  Event statistics from Firestore
+    Output: AI-generated report + charts + CSV export
+    External: Google Gemini API
+
+  Process 7.0: NOTIFICATION SYSTEM
+    Input:  Event actions (guest approval, new member, etc.)
+    Output: Push notifications to user feeds
+    Store:  users/{email}/notifications
+
+LEVEL 2 — SUB-PROCESS DETAIL (Authentication):
+
+  Process 1.1: Google Sign-In
+    -> GoogleSignIn().signIn() -> GoogleSignInAuthentication
+    -> GoogleAuthProvider.credential() -> FirebaseAuth.signInWithCredential()
+
+  Process 1.2: Role Resolution
+    -> Query users/{email}/events OR leader/{email}
+    -> Extract role field -> Route to appropriate dashboard
+
+  Process 1.3: Auto-Login Check
+    -> FirebaseAuth.currentUser (cached session)
+    -> If exists -> Process 1.2
+    -> If null -> Show login screen
+
+5.3 ALGORITHMS
+──────────────
+
+ALGORITHM 1: Auto-Login Router (face_page.dart)
+  INPUT: None (uses cached Firebase Auth session)
+  OUTPUT: Navigation to appropriate dashboard
+
+  BEGIN
+    user = FirebaseAuth.currentUser
+    IF user == null THEN
+      NAVIGATE to HomePage
+      RETURN
+    END IF
+
+    events = QUERY users/{user.email}/events
+    IF events is empty THEN
+      NAVIGATE to HomePage
+      RETURN
+    END IF
+
+    firstEvent = events[0]
+    role = firstEvent.role
+    eventCode = firstEvent.id
+    GlobalState.activeEventCode = eventCode
+
+    SWITCH role:
+      CASE "leader":
+        IF events/{eventCode}.isApproved == true THEN
+          NAVIGATE to LeaderDashboard
+        END IF
+      CASE "member":
+        IF events/{eventCode}.isApproved == true THEN
+          NAVIGATE to MemberDashboard
+        END IF
+      CASE "guest":
+        IF firstEvent.isApproved == true THEN
+          NAVIGATE to GuestDashboard
+        ELSE
+          NAVIGATE to AllEventList (waiting)
+        END IF
+    END SWITCH
+  END
+
+ALGORITHM 2: QR Code Join Flow (event_qr_scanner.dart)
+  INPUT: Scanned QR code string
+  OUTPUT: Navigation to event details or error
+
+  BEGIN
+    scannedCode = MobileScanner.onDetect()
+    eventDoc = QUERY events/{scannedCode}
+    IF eventDoc.exists THEN
+      NAVIGATE to AboutEventDetails(eventDoc)
+    ELSE
+      SHOW error "Invalid event code"
+    END IF
+  END
+
+ALGORITHM 3: Guest Questionnaire Builder (guest_questions_page.dart)
+  INPUT: Leader's question definitions
+  OUTPUT: Stored questionnaire in Firestore
+
+  BEGIN
+    FOR EACH question added by leader:
+      questionData = {
+        question: text,
+        type: short_answer | paragraph | multiple_choice | checkbox | dropdown,
+        options: [list of options] (if type needs them),
+        isRequired: boolean,
+        order: current_count
+      }
+      WRITE to events/{code}/guestQuestions/{auto_id}
+    END FOR
+  END
+
+ALGORITHM 4: Online Presence Tracking (leader_dashboard.dart)
+  INPUT: AppLifecycleState changes
+  OUTPUT: Firestore online status updates
+
+  BEGIN
+    ON app resumed:
+      SET users/{email}.isOnline = true
+      SET events/{code}/leader/{email}.isOnline = true
+      SET local isOnline = true (setState)
+
+    ON app paused OR detached:
+      SET users/{email}.isOnline = false
+      SET events/{code}/leader/{email}.isOnline = false
+      SET local isOnline = false (setState)
+  END
+
+
+================================================================================
+6. SYSTEM DESIGN — STRUCTURAL DIAGRAMS
+================================================================================
+
+6.1 CLASS DIAGRAM (Simplified)
+──────────────────────────────
+
++---------------------+     +---------------------+     +-------------------+
+|     GlobalState      |     |     AuthService      |     | FirestoreService  |
++---------------------+     +---------------------+     +-------------------+
+| - activeEventCode   |     | - _auth             |     | - _firestore      |
++---------------------+     | - _googleSignIn     |     +-------------------+
+| + (static access)   |     | - _firestore        |     | + saveUserDetails |
++---------------------+     +---------------------+     | + saveEvent       |
+                             | + signInWithGoogle  |     | + createEventStr  |
+                             | + signUpWithGoogle  |     | + joinAsMember    |
+                             | + getCurrentUserId  |     | + joinAsGuest     |
+                             | + getCurrentMail    |     | + getUserEvents   |
+                             +---------------------+     | + checkInvitation |
+                                                         | + isUsernameTaken |
++---------------------+     +---------------------+     | + doesEventExist  |
+|   GeminiService      |     |   QRViewerDialog    |     +-------------------+
++---------------------+     +---------------------+
+| - _apiKey           |     | - eventCode         |
+| - _model            |     +---------------------+
++---------------------+     | + _shareQR()        |
+| + generateReport()  |     | + build()           |
++---------------------+     +---------------------+
+
++---------------------+     +---------------------+     +-------------------+
+|  LeaderDashboard     |     |  MemberDashboard    |     | GuestDashboard    |
++---------------------+     +---------------------+     +-------------------+
+| - _menuOpen         |     | - _menuOpen         |     | - _menuOpen       |
+| - eventCode         |     | - eventCode         |     | - eventCode       |
+| - eventDetails      |     | - eventDetails      |     | - eventDetails    |
+| - isOnline          |     | - isOnline          |     | - subEventCount   |
+| - totalSubEvents    |     | - totalSubEvents    |     +-------------------+
+| - totalMembers      |     | - totalMembers      |     | + fetchEventCode  |
+| - totalGuests       |     | - totalGuests       |     | + fetchDetails    |
++---------------------+     +---------------------+     | + build()         |
+| + fetchEventCode()  |     | + fetchEventCode()  |     +-------------------+
+| + fetchDetails()    |     | + fetchDetails()    |
+| + fetchStats()      |     | + fetchStats()      |
+| + _setOnlineStatus()|     | + _setOnlineStatus()|
+| + build()           |     | + build()           |
++---------------------+     +---------------------+
+
+6.2 COMPONENT DIAGRAM
+─────────────────────
+
++─────────────────────────────────────────────────────────+
+|                    FestFlow Application                   |
+|                                                           |
+|  +──────────+  +──────────+  +──────────+  +──────────+  |
+|  |   Home   |  |  Leader  |  |  Member  |  |  Guest   |  |
+|  |  Module   |  |  Module  |  |  Module  |  |  Module  |  |
+|  +──────────+  +──────────+  +──────────+  +──────────+  |
+|       |             |             |             |         |
+|  +──────────────────────────────────────────────────+    |
+|  |              Shared Services Layer                |    |
+|  |  AuthService | FirestoreService | GeminiService   |    |
+|  +──────────────────────────────────────────────────+    |
+|       |             |             |             |         |
+|  +──────────────────────────────────────────────────+    |
+|  |              Shared Widgets Layer                 |    |
+|  |  QRViewerDialog | FAB | StatsWidget | FloatingMenu|    |
+|  +──────────────────────────────────────────────────+    |
++─────────────────────────────────────────────────────────+
+                          |
+              +-----------+-----------+
+              |                       |
+    +─────────────────+     +─────────────────+
+    |  Firebase Auth   |     | Cloud Firestore  |
+    +─────────────────+     +─────────────────+
+    |  Firebase Storage|     |   Gemini API     |
+    +─────────────────+     +─────────────────+
+
+6.3 DEPLOYMENT DIAGRAM
+──────────────────────
+
+  +─────────────+         +──────────────────+
+  | Android Phone|-------->| Firebase Cloud   |
+  | (Flutter App)|<--------| (BaaS Platform)  |
+  +─────────────+         +──────────────────+
+                           | - Authentication |
+  +─────────────+         | - Firestore DB   |
+  |  iOS Device  |-------->| - Cloud Storage  |
+  | (Flutter App)|<--------| - Analytics      |
+  +─────────────+         +──────────────────+
+                                   |
+                           +──────────────────+
+                           | Google Gemini API |
+                           | (External AI)     |
+                           +──────────────────+
+
+
+================================================================================
+7. SYSTEM DESIGN — BEHAVIORAL DIAGRAMS
+================================================================================
+
+7.1 USE CASE DIAGRAM
+────────────────────
+
+Actors: Leader, Member, Guest
+
+Leader Use Cases:
+  - Create Event (4-step wizard)
+  - Edit Event Details
+  - View Dashboard
+  - Create Sub-Events
+  - Edit/Delete Sub-Events
+  - Invite Members (by email)
+  - Remove Members
+  - View Guest List
+  - Approve/Reject Guests
+  - Create Guest Questionnaire
+  - View Analytics
+  - Generate AI Report
+  - Export CSV
+  - Share QR Code
+  - Send Notifications
+  - Manage Settings
+  - Sign Out
+
+Member Use Cases:
+  - View Dashboard
+  - View Sub-Events
+  - View Member List
+  - View Analytics
+  - View AI Report
+  - Share QR Code
+  - View Notifications
+  - Manage Settings
+  - Sign Out
+
+Guest Use Cases:
+  - Browse Public Events
+  - Scan QR Code to Join
+  - Fill Questionnaire
+  - View Dashboard
+  - View Sub-Events
+  - View Notifications
+  - Call Emergency
+  - Manage Settings
+  - Sign Out
+
+7.2 SEQUENCE DIAGRAM — Leader Login Flow
+─────────────────────────────────────────
+
+  User          FacePage      FirebaseAuth    Firestore       LeaderDashboard
+   |               |               |              |                |
+   |--open app---->|               |              |                |
+   |               |--currentUser->|              |                |
+   |               |<--User obj----|              |                |
+   |               |------query users/{email}/events------------->|
+   |               |<-----role="leader", eventCode="XXX"----------|
+   |               |------query events/{code}---->|                |
+   |               |<-----isApproved=true---------|                |
+   |               |--set GlobalState.activeEventCode              |
+   |               |--navigate----------------------------------->|
+   |               |                              |                |
+   |               |                              |  fetchEventCode|
+   |               |                              |<--------------|
+   |               |                              |--return data-->|
+   |<--------------show dashboard---------------------------------|
+
+7.3 SEQUENCE DIAGRAM — Guest QR Scan Flow
+──────────────────────────────────────────
+
+  Guest          QRScanner     Firestore     AboutEventDetails    GuestDashboard
+   |                |              |                |                 |
+   |--open camera-->|              |                |                 |
+   |                |--scan QR---->|                |                 |
+   |                |--query events/{code}--------->|                 |
+   |                |<--event exists + data---------|                 |
+   |                |--navigate--->|                |                 |
+   |                |              |  show details->|                 |
+   |                |              |                |--tap "Join"---->|
+   |                |              |<--write Guest/{email}-----------|
+   |                |              |<--write users/{email}/events----|
+   |                |              |                |                 |
+   |<-------------------------------------------waiting approval-----|
+
+7.4 ACTIVITY DIAGRAM — Event Creation
+──────────────────────────────────────
+
+  [Start]
+     |
+  [Leader signs in via Google]
+     |
+  [Navigate to Event Creation Wizard]
+     |
+  [Step 1: Enter title, type, category, upload image]
+     |
+  [Step 2: Select location (GPS or manual)]
+     |
+  [Step 3: Enter description, dates, fee]
+     |
+  [Step 4: Review all data]
+     |
+  [Generate unique event code]
+     |
+  [Save to leader/{email}/events/{code}]
+     |
+  [Call createEventStructure()]
+     |
+  [Create events/{code} with details + leader maps]
+     |
+  [Initialize 7 sub-collections with "init" placeholders]
+     |
+  [Navigate to LeaderDashboard]
+     |
+  [End]
+
+7.5 STATE CHART — Guest Lifecycle
+─────────────────────────────────
+
+  [Unregistered] --scan QR or browse--> [Browsing Events]
+       |
+  [Browsing Events] --tap "Join"--> [Filling Questionnaire]
+       |                                |
+       |                    [Submit Answers]
+       |                                |
+  [Pending Approval] <-----------------+
+       |
+       |--Leader approves--> [Approved] --login--> [Guest Dashboard]
+       |
+       |--Leader rejects---> [Rejected]
+
+
+================================================================================
+8. IMPLEMENTATION — MODULE DESCRIPTION
+================================================================================
+
+MODULE 1: HOME MODULE
+  Responsibility: Entry point, splash screen, role selection, authentication,
+                  event discovery, QR scanning, event creation wizard.
+  Key Files: main.dart, face_page.dart, home_page.dart, host_zone.dart,
+             guest_zone.dart, all_event_list.dart, event_qr_scanner.dart,
+             auth/, signup/, services/
+  Firestore Collections Used: leader, users, events
+
+MODULE 2: LEADER MODULE
+  Responsibility: Full event administration including sub-event CRUD,
+                  member invitation/management, guest approval/rejection,
+                  questionnaire builder, analytics, and settings.
+  Key Files: leader_dashboard.dart, edit_event.dart, sub_events/,
+             members/, guest/, analytics/, settings/
+  Firestore Collections Used: events/{code}/*, leader/{email}
+
+MODULE 3: MEMBER MODULE
+  Responsibility: Read-only event participation, sub-event viewing,
+                  team member directory, analytics viewing, settings.
+  Key Files: member_dashboard.dart, member_event_page.dart,
+             member_event_details.dart, member_list.dart, settings/
+  Firestore Collections Used: events/{code}/member, events/{code}/sub-events
+
+MODULE 4: GUEST MODULE
+  Responsibility: Lightweight event consumption, sub-event browsing,
+                  notification viewing, emergency services access.
+  Key Files: guest_dashboard.dart, guest_sub_event_list.dart,
+             guest_sub_event_details.dart, settings/
+  Firestore Collections Used: events/{code}/guest, events/{code}/sub-events
+
+MODULE 5: SHARED MODULE
+  Responsibility: Cross-cutting concerns shared by all roles.
+  Key Files: global.dart, qr_viewer_dialog.dart, floating_Action_Button.dart,
+             auth_service.dart, firestore_service.dart, gemini_service.dart
+  Purpose: Prevents code duplication across Leader/Member/Guest modules.
+
+
+================================================================================
+9. CODING STANDARDS AND CONVENTIONS
+================================================================================
+
+  - Language: Dart 3.10.x with null safety enabled
+  - File naming: snake_case (e.g., leader_dashboard.dart)
+  - Class naming: PascalCase (e.g., LeaderDashboard)
+  - Variable naming: camelCase (e.g., eventCode, isLoading)
+  - Private members: Prefixed with underscore (e.g., _menuOpen, _user)
+  - Constants: UPPER_SNAKE_CASE for type maps (e.g., questionTypes)
+  - Firestore document IDs: User email addresses (not UIDs)
+  - Error handling: try-catch blocks with print() for debugging
+  - State management: StatefulWidget + setState() (no Provider/Bloc)
+  - Navigation: MaterialPageRoute with pushReplacement/pushAndRemoveUntil
+  - Async patterns: async/await with Future and StreamBuilder
+  - Null safety: Nullable types (String?) with null checks throughout
+
+
+================================================================================
+10. RESULTS (EXPECTED OUTPUT)
+================================================================================
+
+  SCREEN 1 — Splash Screen:
+    "FestFlow" branding with loading spinner. Auto-redirects based on
+    cached session.
+
+  SCREEN 2 — Home Page:
+    Two role cards: "Host Zone" and "Guest Zone"
+
+  SCREEN 3 — Host Zone:
+    Role toggle (Leader/Member), Google Sign-In, event code entry
+
+  SCREEN 4 — Leader Dashboard:
+    Event banner, details card, stats (sub-events, members, guests),
+    floating menu with 6 options, online indicator, QR button
+
+  SCREEN 5 — Member Dashboard:
+    Same as Leader but without admin controls
+
+  SCREEN 6 — Guest Dashboard:
+    Event details, sub-event count, floating menu (Events + Emergency)
+
+  SCREEN 7 — Analytics:
+    Charts (bar/pie), AI-generated report, CSV export option
+
+  SCREEN 8 — QR Code Dialog:
+    Scannable QR image with share functionality
+
+  SCREEN 9 — Guest Questions Builder:
+    Google Forms-style interface with 5 question types
+
+  SCREEN 10 — Settings:
+    Account, General, Notifications, Privacy, Help, About, Sign Out
+
+
+================================================================================
+11. TESTING SUMMARY
+================================================================================
+
+WHITE-BOX TESTING (test/logic_test.dart):
+  - Tests GlobalState.activeEventCode initialization (null by default)
+  - Tests GlobalState read/write cycle
+  - Tests GlobalState cleanup on logout simulation
+  - Result: ALL 3 TESTS PASSED
+
+BLACK-BOX TESTING (integration_test/app_test.dart):
+  - Hybrid E2E test with 15-second manual pause for Google Sign-In
+  - Tests app launch -> role selection -> dashboard rendering
+  - Designed for physical device (OnePlus A6010 via USB debugging)
+  - Result: DASHBOARD VERIFICATION PASSED
+
+
+================================================================================
+12. REFERENCES
+================================================================================
+
+  [1] Flutter Documentation — https://docs.flutter.dev/
+  [2] Firebase Documentation — https://firebase.google.com/docs
+  [3] Cloud Firestore Guide — https://firebase.google.com/docs/firestore
+  [4] Google Sign-In for Flutter — https://pub.dev/packages/google_sign_in
+  [5] QR Flutter Package — https://pub.dev/packages/qr_flutter
+  [6] Mobile Scanner Package — https://pub.dev/packages/mobile_scanner
+  [7] Google Generative AI (Gemini) — https://pub.dev/packages/google_generative_ai
+  [8] FL Chart Package — https://pub.dev/packages/fl_chart
+  [9] Share Plus Package — https://pub.dev/packages/share_plus
+  [10] Geolocator Package — https://pub.dev/packages/geolocator
+  [11] URL Launcher Package — https://pub.dev/packages/url_launcher
+  [12] Dart Language Tour — https://dart.dev/language
+  [13] Flutter State Management — https://docs.flutter.dev/data-and-backend/state-mgmt
+  [14] Firebase Auth Best Practices — https://firebase.google.com/docs/auth/web/best-practices
+
+
+================================================================================
+                            END OF DOCUMENTATION
+================================================================================
