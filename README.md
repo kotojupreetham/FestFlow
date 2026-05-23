@@ -89,48 +89,110 @@ For comprehensive structural diagrams, see the [Architecture Docs](docs/architec
 
 ## 📸 Screenshots & Showcase
 
-### Mobile Application
+### 📱 Mobile Application Journey
 
+#### 1. Entry & Authentication
+Experience a frictionless welcome and security onboarding with role-specific gateways.
 <table width="100%">
   <tr>
-    <td width="25%" align="center"><b>Login & Auth</b></td>
-    <td width="25%" align="center"><b>Registration</b></td>
-    <td width="25%" align="center"><b>Leader Dashboard</b></td>
-    <td width="25%" align="center"><b>Event Creation</b></td>
+    <td width="25%" align="center"><b>Branded Splash</b></td>
+    <td width="25%" align="center"><b>Entry Portal</b></td>
+    <td width="25%" align="center"><b>Organizer Sign-In</b></td>
+    <td width="25%" align="center"><b>Attendee Sign-In</b></td>
   </tr>
   <tr>
-    <td><img src="assets/screenshots/placeholder-login.png" alt="Login Screenshot" width="100%"></td>
-    <td><img src="assets/screenshots/placeholder-registration.png" alt="Registration Screenshot" width="100%"></td>
-    <td><img src="assets/screenshots/placeholder-leader-dashboard.png" alt="Leader Dashboard Screenshot" width="100%"></td>
-    <td><img src="assets/screenshots/placeholder-event-creation.png" alt="Event Creation Screenshot" width="100%"></td>
+    <td><img src="assets/screenshots/splash-screen.jpg" alt="Splash Screen" width="100%"></td>
+    <td><img src="assets/screenshots/welcome-screen.jpg" alt="Welcome Portal" width="100%"></td>
+    <td><img src="assets/screenshots/host-signin.jpg" alt="Host Zone Sign-In" width="100%"></td>
+    <td><img src="assets/screenshots/guest-signin.jpg" alt="Guest Zone Sign-In" width="100%"></td>
   </tr>
   <tr>
-    <td align="center"><i>Secure login</i></td>
-    <td align="center"><i>Role registration</i></td>
-    <td align="center"><i>Event metrics overview</i></td>
-    <td align="center"><i>4-step wizard</i></td>
-  </tr>
-  <tr>
-    <td width="25%" align="center"><b>Analytics & AI</b></td>
-    <td width="25%" align="center"><b>Notifications</b></td>
-    <td width="25%" align="center"><b>Responsive UI</b></td>
-    <td width="25%" align="center"><b>SOS Safety</b></td>
-  </tr>
-  <tr>
-    <td><img src="assets/screenshots/placeholder-analytics.png" alt="Analytics Screenshot" width="100%"></td>
-    <td><img src="assets/screenshots/placeholder-notifications.png" alt="Notifications Screenshot" width="100%"></td>
-    <td><img src="assets/screenshots/placeholder-responsive.png" alt="Responsive UI Screenshot" width="100%"></td>
-    <td><img src="assets/screenshots/placeholder-sos.png" alt="SOS Safety Screenshot" width="100%"></td>
-  </tr>
-  <tr>
-    <td align="center"><i>Gemini event reports</i></td>
-    <td align="center"><i>Real-time announcements</i></td>
-    <td align="center"><i>Adaptable layout</i></td>
-    <td align="center"><i>Emergency dialer</i></td>
+    <td align="center"><i>Dynamic splash with active spinning loader</i></td>
+    <td align="center"><i>Role selection gateway</i></td>
+    <td align="center"><i>Leaders & staff credentials verification</i></td>
+    <td align="center"><i>Quick attendee login & sign up</i></td>
   </tr>
 </table>
 
-### Admin Web Dashboard
+#### 2. Organizer (Leader) Experience
+Leaders enjoy a robust control room with event generation tools, overlay menus, and instant invite codes.
+<table width="100%">
+  <tr>
+    <td width="25%" align="center"><b>Leader Dashboard</b></td>
+    <td width="25%" align="center"><b>Quick Menu Overlay</b></td>
+    <td width="25%" align="center"><b>Fests Management</b></td>
+    <td width="25%" align="center"><b>Dynamic QR Code</b></td>
+  </tr>
+  <tr>
+    <td><img src="assets/screenshots/leader-dashboard.jpg" alt="Leader Dashboard" width="100%"></td>
+    <td><img src="assets/screenshots/dashboard-menu.jpg" alt="Menu Overlay" width="100%"></td>
+    <td><img src="assets/screenshots/all-events.jpg" alt="All Events List" width="100%"></td>
+    <td><img src="assets/screenshots/event-qr-code.jpg" alt="Event QR Dialogue" width="100%"></td>
+  </tr>
+  <tr>
+    <td align="center"><i>Primary organizer hub for managing major fests</i></td>
+    <td align="center"><i>Glassmorphic bottom-sheet quick action drawer</i></td>
+    <td align="center"><i>Browse, filter, and search active fests</i></td>
+    <td align="center"><i>Interactive invite code generator and QR scanner dialogue</i></td>
+  </tr>
+</table>
+
+#### 3. Administrative Operations & Coordination
+Coordinate teams, screen incoming guest requests, analyze registration trends, and communicate globally.
+<table width="100%">
+  <tr>
+    <td width="20%" align="center"><b>Guest Screening</b></td>
+    <td width="20%" align="center"><b>Staff Management</b></td>
+    <td width="20%" align="center"><b>AI Event Analytics</b></td>
+    <td width="20%" align="center"><b>Global Live Chat</b></td>
+    <td width="20%" align="center"><b>User Profile</b></td>
+  </tr>
+  <tr>
+    <td><img src="assets/screenshots/leader-guest-approval.jpg" alt="Guest Approval" width="100%"></td>
+    <td><img src="assets/screenshots/members-list.jpg" alt="Staff List" width="100%"></td>
+    <td><img src="assets/screenshots/event-analytics.jpg" alt="Event Analytics" width="100%"></td>
+    <td><img src="assets/screenshots/live-chat.jpg" alt="Live Chat" width="100%"></td>
+    <td><img src="assets/screenshots/profile-page.jpg" alt="Profile Screen" width="100%"></td>
+  </tr>
+  <tr>
+    <td align="center"><i>Real-time guest approval queues</i></td>
+    <td align="center"><i>Staff roster listing and real-time presence indicators</i></td>
+    <td align="center"><i>Detailed analytics panel with Gemini AI-powered report triggers</i></td>
+    <td align="center"><i>Real-time, persistent event-wide chat and announcements</i></td>
+    <td align="center"><i>Leader settings and global online status toggle</i></td>
+  </tr>
+</table>
+
+#### 4. Staff & Guest Onboarding
+Coordinators can easily track their assignments while guests register for fests and receive ticket approvals.
+<table width="100%">
+  <tr>
+    <td width="16%" align="center"><b>Staff Home</b></td>
+    <td width="16%" align="center"><b>Staff Agenda</b></td>
+    <td width="16%" align="center"><b>Guest Home</b></td>
+    <td width="16%" align="center"><b>Ticket Approval</b></td>
+    <td width="16%" align="center"><b>Sub-Events Hub</b></td>
+    <td width="16%" align="center"><b>Assignments Log</b></td>
+  </tr>
+  <tr>
+    <td><img src="assets/screenshots/member-dashboard.jpg" alt="Member Dashboard" width="100%"></td>
+    <td><img src="assets/screenshots/member-profile.jpg" alt="Member Profile" width="100%"></td>
+    <td><img src="assets/screenshots/guest-dashboard.jpg" alt="Guest Dashboard" width="100%"></td>
+    <td><img src="assets/screenshots/guest-application-status.jpg" alt="Guest Application Status" width="100%"></td>
+    <td><img src="assets/screenshots/sub-events-list.jpg" alt="Sub-Events Hub" width="100%"></td>
+    <td><img src="assets/screenshots/sub-events-assignments.jpg" alt="Sub-Events Assignments" width="100%"></td>
+  </tr>
+  <tr>
+    <td align="center"><i>Coordinator portal for live scanning</i></td>
+    <td align="center"><i>Personal agenda check list for coordinators</i></td>
+    <td align="center"><i>Attendee hub summarizing event updates</i></td>
+    <td align="center"><i>Real-time application screening status dialog</i></td>
+    <td align="center"><i>Detailed sub-events list with registration features</i></td>
+    <td align="center"><i>Coordinator personal role-assignment checks</i></td>
+  </tr>
+</table>
+
+### 💻 Admin Web Dashboard
 
 <div align="center">
   <img src="assets/screenshots/placeholder-admin-panel.png" alt="Admin Panel Screenshot" width="90%">
