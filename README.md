@@ -201,7 +201,7 @@ For complete terms, check the [LICENSE](LICENSE) file.
 ## 📧 Contact & Support
 
 For queries, permissions, or career opportunities:
-- **Author**: Preetham Kotoju
-- **Email**: preetham.kotoju.dev@gmail.com
-- **LinkedIn**: [Preetham Kotoju](https://linkedin.com/in/kotojupreetham) *(Placeholder)*
+- **Author**: Kotoju Preetham Chary
+- **Email**: kotojupreetham@gmail.com
+- **LinkedIn**: [KOTOJU PREETHAM CHARY](https://linkedin.com/in/kotojupreetham) *(Placeholder)*
 - **GitHub**: [github.com/kotojupreetham](https://github.com/kotojupreetham)
