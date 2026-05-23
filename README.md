@@ -192,14 +192,6 @@ Coordinators can easily track their assignments while guests register for fests 
   </tr>
 </table>
 
-### 💻 Admin Web Dashboard
-
-<div align="center">
-  <img src="assets/screenshots/placeholder-admin-panel.png" alt="Admin Panel Screenshot" width="90%">
-  <br>
-  <i>GSAP-animated Web Console for global database administration</i>
-</div>
-
 ---
 
 ## 📁 Repository Structure
